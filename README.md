@@ -1,21 +1,31 @@
 
-# Network Packet Analyzer 🔍
+# 🕵️ Network Packet Analyzer (Python)
 
-A simple yet powerful packet sniffer written in Python.  
-Captures live IP packets, extracts useful information like source/destination IP and protocol, and displays it in real-time.
+A lightweight network packet sniffer built in Python that captures and displays IP, TCP, UDP, and ICMP traffic — with optional filtering by **protocol**, **port**, and **IP address**.
 
-## 📦 Features
+## 🚀 Features
 
-- Raw socket packet capture
-- IP header parsing
-- Real-time traffic monitoring
-- Lightweight and beginner-friendly
+- 🧠 Raw socket-based packet capture
+- 🔍 Filters:
+  - By **protocol**: TCP, UDP, ICMP
+  - By **port number**
+  - By **IP address** (source or destination)
+- 💡 Supports Windows & Linux
+- 📦 Self-contained, single `.py` file
+- 🧪 Great for learning or basic network traffic analysis
 
-## 🚀 How to Run
+---
 
-> ⚠️ Requires admin/root privileges.
+## 🛠 Requirements
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/network-packet-analyzer.git
-   cd network-packet-analyzer
+- Python 3.6+
+- **Administrator/root privileges** (raw sockets require elevated permissions)
+
+---
+
+## 🖥 How to Run
+
+> ⚠️ Run as Administrator or with sudo!
+
+```bash
+python network_packet_analyzer.py
