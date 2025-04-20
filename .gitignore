@@ -1,0 +1,11 @@
+
+---
+
+### 🧾 `.gitignore`
+
+```gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.log
+.env
