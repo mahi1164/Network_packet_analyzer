@@ -1,0 +1,12 @@
+If you want to:
+
+Only capture TCP packets
+
+Going through port 443
+
+Involving IP 142.250.183.110 (Google)
+
+Update the filters at the top:
+FILTER_PROTOCOL = 'tcp'
+FILTER_PORT = 443
+FILTER_IP = '142.250.183.110'
