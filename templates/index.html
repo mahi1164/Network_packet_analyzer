@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Network Analyzer · Mahi Panjwani</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --bg:#0a0e1a;--surface:#111827;--surface2:#1a2235;
+      --border:#1e2d45;--accent:#00d4ff;--purple:#a855f7;
+      --green:#10b981;--yellow:#f59e0b;--red:#ef4444;
+      --text:#e2e8f0;--muted:#64748b;
+    }
+    body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+    ::-webkit-scrollbar{width:6px;height:6px}
+    ::-webkit-scrollbar-track{background:var(--bg)}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+    /* HEADER */
+    header{
+      background:var(--surface);border-bottom:1px solid var(--border);
+      padding:.9rem 2rem;display:flex;align-items:center;
+      justify-content:space-between;position:sticky;top:0;z-index:50;
+    }
+    .logo{display:flex;align-items:center;gap:12px}
+    .logo-icon{
+      width:38px;height:38px;border-radius:10px;
+      background:linear-gradient(135deg,var(--accent),var(--purple));
+      display:flex;align-items:center;justify-content:center;font-size:1.2rem;
+    }
+    .logo-title{font-weight:800;font-size:15px;background:linear-gradient(135deg,var(--accent),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .logo-sub{font-size:11px;color:var(--muted)}
+    .header-right{display:flex;align-items:center;gap:10px}
+    .status-badge{
+      display:flex;align-items:center;gap:6px;padding:6px 14px;
+      border-radius:20px;background:var(--surface2);border:1px solid var(--border);font-size:12px;
+    }
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);transition:all .3s}
+    .dot.active{background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 1.5s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+    /* BUTTONS */
+    .btn{
+      display:inline-flex;align-items:center;gap:6px;padding:7px 18px;
+      border-radius:8px;border:none;cursor:pointer;font-weight:700;
+      font-size:13px;transition:opacity .2s;color:white;
+    }
+    .btn:hover{opacity:.85}
+    .btn-start{background:linear-gradient(135deg,var(--green),#059669)}
+    .btn-stop{background:linear-gradient(135deg,var(--red),#dc2626)}
+    .btn-export{background:linear-gradient(135deg,var(--purple),#7c3aed);text-decoration:none}
+    .btn-apply{background:linear-gradient(135deg,var(--accent),#0ea5e9);color:#0a0e1a}
+
+    /* MAIN */
+    main{padding:1.5rem 2rem;display:flex;flex-direction:column;gap:1.5rem}
+
+    /* STAT CARDS */
+    .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+    .stat-card{
+      background:var(--surface);border:1px solid var(--border);
+      border-radius:12px;padding:1.1rem 1.25rem;border-top:3px solid var(--accent);
+    }
+    .stat-card.udp{border-top-color:var(--purple)}
+    .stat-card.icmp{border-top-color:var(--green)}
+    .stat-card.other{border-top-color:var(--yellow)}
+    .stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+    .stat-value{font-size:28px;font-weight:800;color:var(--accent)}
+    .stat-card.udp .stat-value{color:var(--purple)}
+    .stat-card.icmp .stat-value{color:var(--green)}
+    .stat-card.other .stat-value{color:var(--yellow)}
+    .stat-sub{font-size:11px;color:var(--muted);margin-top:2px}
+
+    /* FILTER BAR */
+    .filter-bar{
+      background:var(--surface);border:1px solid var(--border);border-radius:12px;
+      padding:1rem 1.25rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;
+    }
+    .filter-label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.07em}
+    select,input[type=text]{
+      background:var(--surface2);border:1px solid var(--border);color:var(--text);
+      padding:6px 10px;border-radius:7px;font-size:13px;outline:none;
+    }
+    select:focus,input:focus{border-color:var(--accent)}
+    .search-input{margin-left:auto;width:200px}
+
+    /* CHARTS */
+    .charts-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem}
+    .chart-card{
+      background:var(--surface);border:1px solid var(--border);
+      border-radius:12px;padding:1.1rem;
+    }
+    .chart-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px}
+    .chart-wrap{position:relative;height:160px}
+
+    /* TOP TALKERS */
+    .talker{margin-bottom:10px}
+    .talker-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
+    .talker-ip{font-family:monospace;color:var(--text)}
+    .talker-count{color:var(--muted)}
+    .talker-bar-bg{background:var(--surface2);border-radius:4px;height:5px}
+    .talker-bar{height:5px;border-radius:4px;transition:width .4s ease}
+
+    /* TABLE */
+    .table-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    .table-header{
+      padding:.9rem 1.25rem;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between;
+    }
+    .table-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+    .row-count{
+      margin-left:10px;padding:2px 8px;background:var(--surface2);
+      border-radius:10px;font-size:11px;color:var(--accent);
+    }
+    .autoscroll-label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer}
+    .table-wrap{max-height:360px;overflow-y:auto}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    thead th{
+      padding:10px 14px;text-align:left;font-size:11px;color:var(--muted);
+      text-transform:uppercase;letter-spacing:.07em;cursor:pointer;
+      background:var(--bg);position:sticky;top:0;z-index:2;
+      border-bottom:1px solid var(--border);white-space:nowrap;user-select:none;
+    }
+    thead th:hover{color:var(--accent)}
+    tbody tr{border-bottom:1px solid var(--surface2)}
+    tbody tr:hover td{background:#131f35}
+    tbody td{padding:9px 14px}
+    .mono{font-family:monospace}
+    .proto-badge{
+      display:inline-flex;align-items:center;gap:3px;
+      padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;
+    }
+    .proto-TCP{background:#00d4ff22;color:#00d4ff;border:1px solid #00d4ff44}
+    .proto-UDP{background:#a855f722;color:#a855f7;border:1px solid #a855f744}
+    .proto-ICMP{background:#10b98122;color:#10b981;border:1px solid #10b98144}
+    .proto-OTHER{background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b44}
+    .empty-row td{text-align:center;padding:3rem;color:var(--muted);font-size:13px}
+    .flag-cell{font-family:monospace;font-size:11px}
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">📡</div>
+    <div>
+      <div class="logo-title">Network Packet Analyzer</div>
+      <div class="logo-sub">Mahi Panjwani · Real-time TCP/IP Dashboard</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-badge">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Idle</span>
+    </div>
+    <button class="btn btn-start" id="toggleBtn" onclick="toggleCapture()">▶ Start</button>
+    <a class="btn btn-export" href="/export">⬇ Export CSV</a>
+  </div>
+</header>
+
+<main>
+  <!-- STAT CARDS -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total Packets</div>
+      <div class="stat-value" id="statTotal">0</div>
+      <div class="stat-sub">captured this session</div>
+    </div>
+    <div class="stat-card udp" style="border-top-color:#00d4ff">
+      <div class="stat-label">TCP</div>
+      <div class="stat-value" id="statTCP" style="color:#00d4ff">0</div>
+      <div class="stat-sub" id="statTCPpct">0% of traffic</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#a855f7">
+      <div class="stat-label">UDP</div>
+      <div class="stat-value" id="statUDP" style="color:#a855f7">0</div>
+      <div class="stat-sub" id="statUDPpct">0% of traffic</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#10b981">
+      <div class="stat-label">ICMP + Other</div>
+      <div class="stat-value" id="statICMP" style="color:#10b981">0</div>
+      <div class="stat-sub">combined</div>
+    </div>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <span class="filter-label">🔍 Filters</span>
+    <select id="fProtocol">
+      <option value="">All Protocols</option>
+      <option>TCP</option><option>UDP</option>
+      <option>ICMP</option><option>OTHER</option>
+    </select>
+    <input type="text" id="fSrcIP"  placeholder="Source IP"      style="width:130px"/>
+    <input type="text" id="fDstIP"  placeholder="Destination IP" style="width:130px"/>
+    <input type="text" id="fPort"   placeholder="Port"           style="width:80px"/>
+    <button class="btn btn-apply" onclick="applyFilter()">Apply</button>
+    <input type="text" id="search" class="search-input" placeholder="Search table..." oninput="renderTable()"/>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">Packets / Second</div>
+      <div class="chart-wrap"><canvas id="lineChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Protocol Distribution</div>
+      <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Top Talkers</div>
+      <div id="topTalkers"><p style="color:var(--muted);font-size:13px;margin-top:20px">No data yet</p></div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-card">
+    <div class="table-header">
+      <div>
+        <span class="table-title">Live Packet Feed</span>
+        <span class="row-count" id="rowCount">0 rows</span>
+      </div>
+      <label class="autoscroll-label">
+        <input type="checkbox" id="autoScroll" checked/> Auto-scroll
+      </label>
+    </div>
+    <div class="table-wrap" id="tableWrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortBy('timestamp')">Time ↕</th>
+            <th onclick="sortBy('protocol')">Protocol ↕</th>
+            <th onclick="sortBy('src_ip')">Source IP ↕</th>
+            <th onclick="sortBy('src_port')">Src Port ↕</th>
+            <th onclick="sortBy('dst_ip')">Dest IP ↕</th>
+            <th onclick="sortBy('dst_port')">Dst Port ↕</th>
+            <th onclick="sortBy('size')">Size (B) ↕</th>
+            <th>Flags</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr class="empty-row"><td colspan="8">Press Start to begin capturing</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+  // ── State ────────────────────────────────────────────────────────
+  let packets  = [];
+  let running  = false;
+  let sortCol  = "timestamp";
+  let sortDir  = "desc";
+  const socket = io();
+
+  // ── Charts ───────────────────────────────────────────────────────
+  const lineCtx = document.getElementById("lineChart").getContext("2d");
+  const pieCtx  = document.getElementById("pieChart").getContext("2d");
+
+  const lineChart = new Chart(lineCtx, {
+    type: "line",
+    data: {
+      labels: [],
+      datasets: [{
+        data: [], borderColor: "#00d4ff", borderWidth: 2,
+        pointRadius: 0, fill: true,
+        backgroundColor: "rgba(0,212,255,0.08)", tension: 0.4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: { ticks: { color: "#64748b", font: { size: 10 } }, grid: { color: "#1e2d45" } }
+      }
+    }
+  });
+
+  const pieChart = new Chart(pieCtx, {
+    type: "doughnut",
+    data: {
+      labels: ["TCP","UDP","ICMP","OTHER"],
+      datasets: [{
+        data: [0,0,0,0],
+        backgroundColor: ["#00d4ff","#a855f7","#10b981","#f59e0b"],
+        borderWidth: 0, hoverOffset: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { position: "bottom", labels: { color: "#64748b", font: { size: 11 }, boxWidth: 10, padding: 10 } }
+      },
+      cutout: "60%",
+    }
+  });
+
+  // ── Socket ───────────────────────────────────────────────────────
+  socket.on("packet", ({ packet, stats }) => {
+    packets.unshift(packet);
+    if (packets.length > 200) packets.pop();
+    updateStats(stats);
+    renderTable();
+  });
+
+  // ── Stats ────────────────────────────────────────────────────────
+  function updateStats(s) {
+    const total = s.total || 1;
+    document.getElementById("statTotal").textContent = s.total;
+    document.getElementById("statTCP").textContent   = s.protocols.TCP;
+    document.getElementById("statUDP").textContent   = s.protocols.UDP;
+    document.getElementById("statICMP").textContent  = s.protocols.ICMP + s.protocols.OTHER;
+    document.getElementById("statTCPpct").textContent = ((s.protocols.TCP/total)*100).toFixed(1) + "% of traffic";
+    document.getElementById("statUDPpct").textContent = ((s.protocols.UDP/total)*100).toFixed(1) + "% of traffic";
+
+    // Line chart
+    lineChart.data.labels.push("");
+    lineChart.data.datasets[0].data.push(s.pps_history.at(-1) || 0);
+    if (lineChart.data.labels.length > 30) {
+      lineChart.data.labels.shift();
+      lineChart.data.datasets[0].data.shift();
+    }
+    lineChart.update();
+
+    // Pie chart
+    pieChart.data.datasets[0].data = [
+      s.protocols.TCP, s.protocols.UDP, s.protocols.ICMP, s.protocols.OTHER
+    ];
+    pieChart.update();
+
+    // Top talkers
+    const el = document.getElementById("topTalkers");
+    if (!s.top_talkers.length) return;
+    const max = s.top_talkers[0].count;
+    const colors = ["#00d4ff","#a855f7","#10b981","#f59e0b","#ef4444"];
+    el.innerHTML = s.top_talkers.map((t, i) => `
+      <div class="talker">
+        <div class="talker-row">
+          <span class="talker-ip">${t.ip}</span>
+          <span class="talker-count">${t.count}</span>
+        </div>
+        <div class="talker-bar-bg">
+          <div class="talker-bar" style="width:${(t.count/max*100).toFixed(1)}%;background:${colors[i]}"></div>
+        </div>
+      </div>`).join("");
+  }
+
+  // ── Table ────────────────────────────────────────────────────────
+  function renderTable() {
+    const search = document.getElementById("search").value.toLowerCase();
+    let rows = packets.filter(p =>
+      !search || Object.values(p).some(v => String(v).toLowerCase().includes(search))
+    );
+
+    rows = rows.sort((a, b) => {
+      const va = a[sortCol], vb = b[sortCol];
+      const cmp = isNaN(va) ? String(va).localeCompare(String(vb)) : Number(va) - Number(vb);
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
+    document.getElementById("rowCount").textContent = rows.length + " rows";
+
+    const tbody = document.getElementById("tableBody");
+    if (!rows.length) {
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="8">${running ? "Waiting for packets..." : "Press Start to begin capturing"}</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rows.map(p => `
+      <tr>
+        <td class="mono" style="color:var(--muted);font-size:12px">${p.timestamp}</td>
+        <td><span class="proto-badge proto-${p.protocol}">${p.protocol}</span></td>
+        <td class="mono">${p.src_ip}</td>
+        <td class="mono" style="color:#a855f7">${p.src_port}</td>
+        <td class="mono">${p.dst_ip}</td>
+        <td class="mono" style="color:#a855f7">${p.dst_port}</td>
+        <td style="color:var(--muted)">${p.size}</td>
+        <td class="flag-cell" style="color:${p.flags !== '-' ? '#f59e0b' : 'var(--muted)'}">${p.flags}</td>
+      </tr>`).join("");
+
+    if (document.getElementById("autoScroll").checked) {
+      document.getElementById("tableWrap").scrollTop = 0;
+    }
+  }
+
+  function sortBy(col) {
+    if (sortCol === col) sortDir = sortDir === "asc" ? "desc" : "asc";
+    else { sortCol = col; sortDir = "asc"; }
+    renderTable();
+  }
+
+  // ── Controls ─────────────────────────────────────────────────────
+  async function toggleCapture() {
+    const btn = document.getElementById("toggleBtn");
+    const dot = document.getElementById("statusDot");
+    const txt = document.getElementById("statusText");
+
+    if (!running) {
+      await fetch("/start", { method: "POST" });
+      running = true;
+      packets = [];
+      btn.className = "btn btn-stop";
+      btn.textContent = "⬛ Stop";
+      dot.classList.add("active");
+      txt.textContent = "Capturing";
+    } else {
+      await fetch("/stop", { method: "POST" });
+      running = false;
+      btn.className = "btn btn-start";
+      btn.textContent = "▶ Start";
+      dot.classList.remove("active");
+      txt.textContent = "Idle";
+    }
+  }
+
+  async function applyFilter() {
+    await fetch("/filter", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        protocol: document.getElementById("fProtocol").value,
+        src_ip:   document.getElementById("fSrcIP").value,
+        dst_ip:   document.getElementById("fDstIP").value,
+        port:     document.getElementById("fPort").value,
+      })
+    });
+  }
+</script>
+</body>
+</html>
