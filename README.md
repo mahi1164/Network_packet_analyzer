@@ -171,4 +171,4 @@ pip freeze > requirements.txt
 
 **Mahi Panjwani**
 B.Tech Computer Science & Engineering — Amity University Chhattisgarh
-[LinkedIn](https://linkedin.com/in/YOUR-LINKEDIN) · [GitHub](https://github.com/YOUR-GITHUB)
+[LinkedIn](http://www.linkedin.com/in/mahi-panjwani-bbb6a7294/) · [GitHub](http://github.com/mahi1164)
